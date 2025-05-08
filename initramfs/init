@@ -230,12 +230,26 @@ mv /sdcard/factory_ZMC6tiIDQN /sdcard/factory_ZMC6tiIDQN.old
 
 cp "$log_file" "$log_backup" 2>/dev/null
 
-# Sync file systems and unmount the SD card
+# Sync file systems and unmount the SD card. sync flushes buffers at least from the filesystem layer but I don't trust the sd card driver to do the right thing without coaxing
+echo "First sync"
 sync
+echo "umount"
 umount /sdcard
+echo "second sync"
+sync
+
+# Let's do a few extra steps to encourage the sd controller to do the right thing
+echo "bonus dd read from mmc"
+dd if=/dev/mmcblk0 bs=1k  count=256 skip=1024  of=/dev/null 
+# totally not hacky at all but let's just read the first 256k of the vfat. someone of stackoverflow claimed this fixed their unclean filesystem after unmount
+echo "bonus sleep 10"
+sleep 10 # silly sd just do the right thing please
+echo "final sync"
+sync
 
 # Kill the LED process
 kill $led_pid
 
-# Reset the system using watchdog
+# Reset the system using watchdog, this is harsh
+echo "wdt reset"
 echo wdt > /proc/jz/reset/reset
